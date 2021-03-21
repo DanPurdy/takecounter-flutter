@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Takecounter',
-      theme: ThemeData(
+      theme: ThemeData(fontFamily: 'Heebo'
           // This is the theme of your application.
           //
           // Try running your application with "flutter run". You'll see the
@@ -165,7 +165,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         alignment: Alignment.center,
                         fit: BoxFit.contain,
                         child: Center(
-                            child: Text('Pass',
+                            child: Text('PASS',
                                 style: TextStyle(color: Colors.white))),
                       ),
                     ),
@@ -190,7 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     alignment: Alignment.center,
                     fit: BoxFit.contain,
                     child: Center(
-                        child: Text('Take',
+                        child: Text('TAKE',
                             style: TextStyle(color: Colors.white))),
                   ),
                 ),
@@ -212,7 +212,7 @@ class _MyHomePageState extends State<MyHomePage> {
           alignment: Alignment.center,
           fit: BoxFit.contain,
           child: Center(
-              child: Text(_isCurrent ? 'Current' : 'Next',
+              child: Text(_isCurrent ? 'CURRENT' : 'NEXT',
                   style: TextStyle(color: Colors.white))),
         ),
       ),
