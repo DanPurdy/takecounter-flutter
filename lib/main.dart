@@ -2,13 +2,59 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:takecounter/src/counter.dart';
-import 'package:takecounter/src/toggleContainer.dart';
 
-void main() {
+const MAX_TAKE = 9999;
+const MAX_PASS = 999;
+
+void main() async {
   runApp(MyApp());
+}
+
+enum ControlType {
+  incrementTake,
+  decrementTake,
+  incrementPass,
+  decrementPass,
+  selectTake,
+  togglePass,
+  initiateNewPass,
+  reset,
+}
+
+class ControlForm {
+  int incrementTake;
+  int decrementTake;
+  int incrementPass;
+  int decrementPass;
+  int selectTake;
+  int togglePass;
+  int initiateNewPass;
+  int reset;
+
+  ControlForm(
+    int incrementTake,
+    int decrementTake,
+    int incrementPass,
+    int decrementPass,
+    int selectTake,
+    int togglePass,
+    int initiateNewPass,
+    int reset,
+  ) {
+    this.incrementTake = incrementTake;
+    this.decrementTake = decrementTake;
+    this.incrementPass = incrementPass;
+    this.decrementPass = decrementPass;
+    this.selectTake = selectTake;
+    this.togglePass = togglePass;
+    this.initiateNewPass = initiateNewPass;
+    this.reset = reset;
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -17,17 +63,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Takecounter',
-      theme: ThemeData(fontFamily: 'Heebo'
-          // This is the theme of your application.
-          //
-          // Try running your application with "flutter run". You'll see the
-          // application has a blue toolbar. Then, without quitting the app, try
-          // changing the primarySwatch below to Colors.green and then invoke
-          // "hot reload" (press "r" in the console where you ran "flutter run",
-          // or simply save your changes to "hot reload" in a Flutter IDE).
-          // Notice that the counter didn't reset back to zero; the application
-          // is not restarted.
-          ),
+      theme: ThemeData(fontFamily: 'Heebo'),
       home: MyHomePage(title: 'Takecounter'),
     );
   }
@@ -52,36 +88,61 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  bool isOpen = false;
+  bool _isPassVisible = false;
   bool _isCurrent = false;
   int _take = 1;
   int _pass = 1;
-  bool isListening = false;
+  bool _isListening = false;
+  bool _isDialogOpen = false;
+  ControlForm controls;
 
   void initState() {
     super.initState();
-    if (isListening) return;
-
-    isListening = true;
-
-    RawKeyboard.instance.addListener(_onKey);
+    _checkPreferences();
   }
 
   void dispose() {
     super.dispose();
-    if (!isListening) return;
+    if (!_isListening) return;
 
     RawKeyboard.instance.removeListener(_onKey);
 
-    isListening = false;
+    _isListening = false;
+  }
+
+  void _checkPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setBool(
+        'hasKeys', false); // TODO remove once able to re open settings panel
+
+    if (!prefs.containsKey('hasKeys') || prefs.getBool('hasKeys') == false) {
+      setState(() {
+        controls = new ControlForm(
+          LogicalKeyboardKey.numpadAdd.keyId,
+          LogicalKeyboardKey.numpadSubtract.keyId,
+          LogicalKeyboardKey.numpad6.keyId,
+          LogicalKeyboardKey.numpad9.keyId,
+          LogicalKeyboardKey.numpadMultiply.keyId,
+          LogicalKeyboardKey.numpad4.keyId,
+          LogicalKeyboardKey.numpad7.keyId,
+          LogicalKeyboardKey.numpadDecimal.keyId,
+        );
+      });
+
+      await _showEditControls(context);
+      await prefs.setBool('hasKeys', true);
+    } else {
+      print('LOAD CONTROLS'); // TODO load the controls from preferences
+    }
   }
 
   void _onKey(RawKeyEvent event) async {
-    if (event.runtimeType.toString() == 'RawKeyDownEvent') {
-      if (event.isKeyPressed(LogicalKeyboardKey.keyJ)) {
+    if (!_isDialogOpen && event.runtimeType.toString() == 'RawKeyDownEvent') {
+      if (event.logicalKey.keyId == controls.togglePass) {
         _toggleContainer();
       }
-      if (event.isKeyPressed(LogicalKeyboardKey.keyP)) {
+      if (event.logicalKey.keyId == controls.incrementTake) {
         if (!_isCurrent) {
           setState(() {
             _isCurrent = true;
@@ -90,36 +151,53 @@ class _MyHomePageState extends State<MyHomePage> {
           setState(() {
             _isCurrent = false;
           });
-          _incrementTake();
+          await _incrementTake();
         }
       }
-      if (event.isKeyPressed(LogicalKeyboardKey.semicolon)) {
+      if (event.logicalKey.keyId == controls.decrementTake) {
         _decrementTake();
       }
-      if (event.isKeyPressed(LogicalKeyboardKey.keyO)) {
-        _incrementPass();
+      if (event.logicalKey.keyId == controls.incrementPass) {
+        if (_isPassVisible) {
+          _incrementPass();
+        }
       }
-      if (event.isKeyPressed(LogicalKeyboardKey.keyL)) {
-        _decrementPass();
+      if (event.logicalKey.keyId == controls.decrementPass) {
+        if (_isPassVisible) {
+          _decrementPass();
+        }
+      }
+      if (event.logicalKey.keyId == controls.reset) {
+        _isDialogOpen = true;
+        _resetApp(context);
+      }
+      if (event.logicalKey.keyId == controls.selectTake) {
+        _isDialogOpen = true;
+        _selectTake(context).then((value) => {
+              setState(() {
+                this._take = min(MAX_TAKE, max(1, value));
+                _isDialogOpen = false;
+              })
+            });
       }
     }
   }
 
   void _toggleContainer() {
     setState(() {
-      isOpen = !isOpen;
+      _isPassVisible = !_isPassVisible;
     });
   }
 
-  void _incrementTake() {
+  Future<void> _incrementTake() async {
     setState(() {
-      _take = min(9999, _take + 1);
+      _take = min(MAX_TAKE, _take + 1);
     });
   }
 
   void _incrementPass() {
     setState(() {
-      _pass = min(999, _pass + 1);
+      _pass = min(MAX_PASS, _pass + 1);
     });
   }
 
@@ -135,8 +213,324 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  Future<void> _showEditControls(BuildContext context) {
+    TextEditingController _incrementTakeController = TextEditingController(
+        text: LogicalKeyboardKey.findKeyByKeyId(controls.incrementTake)
+            .debugName
+            .toString()
+            .toLowerCase());
+    TextEditingController _decrementTakeController = TextEditingController(
+        text: LogicalKeyboardKey.findKeyByKeyId(controls.decrementTake)
+            .debugName
+            .toString()
+            .toLowerCase());
+    TextEditingController _incrementPassController = TextEditingController(
+        text: LogicalKeyboardKey.findKeyByKeyId(controls.incrementPass)
+            .debugName
+            .toString()
+            .toLowerCase());
+    TextEditingController _decrementPassController = TextEditingController(
+        text: LogicalKeyboardKey.findKeyByKeyId(controls.decrementPass)
+            .debugName
+            .toString()
+            .toLowerCase());
+    TextEditingController _selectTakeController = TextEditingController(
+        text: LogicalKeyboardKey.findKeyByKeyId(controls.selectTake)
+            .debugName
+            .toString()
+            .toLowerCase());
+    TextEditingController _togglePassController = TextEditingController(
+        text: LogicalKeyboardKey.findKeyByKeyId(controls.togglePass)
+            .debugName
+            .toString()
+            .toLowerCase());
+    TextEditingController _initiateNewPassController = TextEditingController(
+        text: LogicalKeyboardKey.findKeyByKeyId(controls.initiateNewPass)
+            .debugName
+            .toString()
+            .toLowerCase());
+    TextEditingController _resetController = TextEditingController(
+        text: LogicalKeyboardKey.findKeyByKeyId(controls.reset)
+            .debugName
+            .toString()
+            .toLowerCase());
+
+    RawKeyboard.instance.removeListener(_onKey);
+
+    setState(() {
+      _isListening = false;
+    });
+
+    void _handleKeyEvent(RawKeyEvent event, TextEditingController controller,
+        ControlType control) {
+      if (event.runtimeType.toString() == 'RawKeyUpEvent' &&
+          event.logicalKey.keyLabel.toString() != '') {
+        final int keyId = event.logicalKey.keyId;
+        switch (control) {
+          case ControlType.incrementTake:
+            setState(() {
+              controls.incrementTake = keyId;
+            });
+            break;
+          case ControlType.decrementTake:
+            setState(() {
+              controls.decrementTake = keyId;
+            });
+
+            break;
+          case ControlType.incrementPass:
+            setState(() {
+              controls.incrementPass = keyId;
+            });
+            break;
+          case ControlType.decrementPass:
+            setState(() {
+              controls.decrementPass = keyId;
+            });
+            break;
+          case ControlType.selectTake:
+            setState(() {
+              controls.selectTake = keyId;
+            });
+            break;
+          case ControlType.togglePass:
+            setState(() {
+              controls.togglePass = keyId;
+            });
+            break;
+          case ControlType.initiateNewPass:
+            setState(() {
+              controls.initiateNewPass = keyId;
+            });
+            break;
+          case ControlType.reset:
+            setState(() {
+              controls.reset = keyId;
+            });
+            break;
+        }
+
+        controller.value = TextEditingValue(
+            text: event.logicalKey.debugName.toString().toLowerCase());
+      }
+    }
+
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            actions: <Widget>[
+              TextButton(
+                child: Text('Confirm'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              )
+            ],
+            title: Text('Choose your controls'),
+            content: Stack(
+              children: <Widget>[
+                Form(
+                    child: Column(
+                  children: [
+                    RawKeyboardListener(
+                      focusNode: FocusNode(skipTraversal: false),
+                      child: TextFormField(
+                        autofocus: true,
+                        decoration:
+                            InputDecoration(labelText: 'Increment Take'),
+                        enableInteractiveSelection: false,
+                        controller: _incrementTakeController,
+                        readOnly: true,
+                      ),
+                      onKey: (event) => _handleKeyEvent(event,
+                          _incrementTakeController, ControlType.incrementTake),
+                    ),
+                    RawKeyboardListener(
+                      focusNode: FocusNode(skipTraversal: true),
+                      child: TextFormField(
+                        decoration:
+                            InputDecoration(labelText: 'Decrement Take'),
+                        enableInteractiveSelection: false,
+                        controller: _decrementTakeController,
+                        readOnly: true,
+                      ),
+                      onKey: (event) => _handleKeyEvent(event,
+                          _decrementTakeController, ControlType.decrementTake),
+                    ),
+                    RawKeyboardListener(
+                      focusNode: FocusNode(skipTraversal: true),
+                      child: TextFormField(
+                        decoration:
+                            InputDecoration(labelText: 'Increment Pass'),
+                        enableInteractiveSelection: false,
+                        controller: _incrementPassController,
+                        readOnly: true,
+                      ),
+                      onKey: (event) => _handleKeyEvent(event,
+                          _incrementPassController, ControlType.incrementPass),
+                    ),
+                    RawKeyboardListener(
+                      focusNode: FocusNode(skipTraversal: true),
+                      child: TextFormField(
+                        decoration:
+                            InputDecoration(labelText: 'Decrement Pass'),
+                        enableInteractiveSelection: false,
+                        controller: _decrementPassController,
+                        readOnly: true,
+                      ),
+                      onKey: (event) => _handleKeyEvent(event,
+                          _decrementPassController, ControlType.decrementPass),
+                    ),
+                    RawKeyboardListener(
+                      focusNode: FocusNode(skipTraversal: true),
+                      child: TextFormField(
+                        decoration: InputDecoration(labelText: 'Select Take'),
+                        enableInteractiveSelection: false,
+                        controller: _selectTakeController,
+                        readOnly: true,
+                      ),
+                      onKey: (event) => _handleKeyEvent(
+                          event, _selectTakeController, ControlType.selectTake),
+                    ),
+                    RawKeyboardListener(
+                      focusNode: FocusNode(skipTraversal: true),
+                      child: TextFormField(
+                        decoration:
+                            InputDecoration(labelText: 'Toggle Pass View'),
+                        enableInteractiveSelection: false,
+                        controller: _togglePassController,
+                        readOnly: true,
+                      ),
+                      onKey: (event) => _handleKeyEvent(
+                          event, _togglePassController, ControlType.togglePass),
+                    ),
+                    RawKeyboardListener(
+                      focusNode: FocusNode(skipTraversal: true),
+                      child: TextFormField(
+                        decoration:
+                            InputDecoration(labelText: 'Initiate New Pass'),
+                        enableInteractiveSelection: false,
+                        controller: _initiateNewPassController,
+                        readOnly: true,
+                      ),
+                      onKey: (event) => _handleKeyEvent(
+                          event,
+                          _initiateNewPassController,
+                          ControlType.initiateNewPass),
+                    ),
+                    RawKeyboardListener(
+                      focusNode: FocusNode(skipTraversal: true),
+                      child: TextFormField(
+                        decoration: InputDecoration(labelText: 'Reset'),
+                        enableInteractiveSelection: false,
+                        controller: _resetController,
+                        readOnly: true,
+                      ),
+                      onKey: (event) => _handleKeyEvent(
+                          event, _resetController, ControlType.reset),
+                    ),
+                  ],
+                ))
+              ],
+            ),
+          );
+        }).then((_) {
+      _isListening = true;
+
+      RawKeyboard.instance.addListener(_onKey);
+    });
+  }
+
+  Future<int> _selectTake(BuildContext context) {
+    TextEditingController customController = TextEditingController();
+
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Select take'),
+            content: CupertinoTextField(
+              onSubmitted: (val) {
+                Navigator.of(context).pop(int.parse(
+                    customController.text.isEmpty
+                        ? _take.toString()
+                        : customController.text.toString()));
+              },
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              controller: customController,
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.digitsOnly
+              ],
+            ),
+            actions: <Widget>[
+              CupertinoButton(
+                  child: Text('Confirm'),
+                  onPressed: () {
+                    Navigator.of(context).pop(int.parse(
+                        customController.text.isEmpty
+                            ? _take.toString()
+                            : customController.text.toString()));
+                  })
+            ],
+          );
+        });
+  }
+
+  _resetApp(BuildContext context) {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return RawKeyboardListener(
+              autofocus: true,
+              focusNode: FocusNode(),
+              onKey: (event) {
+                if (event.isKeyPressed(LogicalKeyboardKey.enter) ||
+                    event.isKeyPressed(LogicalKeyboardKey.numpadEnter)) {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _take = 1;
+                    _pass = 1;
+                    _isCurrent = false;
+                  });
+                }
+              },
+              child: AlertDialog(
+                title: Text('Reset Takecounter'),
+                content: Text('Reset the takecounter'),
+                actions: <Widget>[
+                  CupertinoButton(
+                      child: Text('Cancel'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      }),
+                  CupertinoButton(
+                      child: Text('Confirm'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        setState(() {
+                          _take = 1;
+                          _pass = 1;
+                          _isCurrent = false;
+                        });
+                      }),
+                ],
+              ));
+        }).then((test) {
+      _isDialogOpen = false;
+    });
+  }
+
+  _updateMenu() {
+    if (!Platform.isMacOS && !Platform.isLinux) {
+      return;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    _updateMenu();
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
@@ -152,37 +546,43 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Row(children: [
           Row(children: [
             Visibility(
-              maintainState: true,
-              visible: isOpen ? true : false,
-              child: Container(
-                  width: MediaQuery.of(context).size.width * 0.45,
-                  child: new Column(children: [
-                    new Container(
-                      height: MediaQuery.of(context).size.height * 0.20,
-                      width: MediaQuery.of(context).size.width * 0.45,
-                      color: Colors.black,
-                      child: FittedBox(
-                        alignment: Alignment.center,
-                        fit: BoxFit.contain,
-                        child: Center(
-                            child: Text('PASS',
-                                style: TextStyle(color: Colors.white))),
-                      ),
-                    ),
-                    new Counter(
-                      value: _pass,
-                    )
-                  ])),
-            ),
+                maintainState: true,
+                visible: _isPassVisible ? true : false,
+                child: Row(children: [
+                  Container(
+                      width: (MediaQuery.of(context).size.width * 0.45) - 12.0,
+                      child: new Column(children: [
+                        new Container(
+                          height: MediaQuery.of(context).size.height * 0.20,
+                          width: MediaQuery.of(context).size.width * 0.45,
+                          color: Colors.black,
+                          child: FittedBox(
+                            alignment: Alignment.center,
+                            fit: BoxFit.contain,
+                            child: Center(
+                                child: Text('PASS',
+                                    style: TextStyle(color: Colors.white))),
+                          ),
+                        ),
+                        new Counter(
+                          value: _pass,
+                        )
+                      ])),
+                  VerticalDivider(
+                    width: 12.0,
+                    thickness: 12.0,
+                    color: Colors.black,
+                  )
+                ])),
             Container(
               height: MediaQuery.of(context).size.height * 0.80,
-              width: isOpen
+              width: _isPassVisible
                   ? MediaQuery.of(context).size.width * 0.55
                   : MediaQuery.of(context).size.width,
               child: new Column(children: [
                 new Container(
                   height: MediaQuery.of(context).size.height * 0.20,
-                  width: isOpen
+                  width: _isPassVisible
                       ? MediaQuery.of(context).size.width * 0.55
                       : MediaQuery.of(context).size.width,
                   color: Colors.black,
