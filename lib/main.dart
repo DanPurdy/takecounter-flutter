@@ -130,12 +130,15 @@ class _MyHomePageState extends State<MyHomePage> {
       }
       if (event.logicalKey.keyId == controls.selectTake) {
         _isDialogOpen = true;
-        _selectTake(context).then((value) => {
-              setState(() {
-                this._take = min(MAX_TAKE, max(1, value));
-                _isDialogOpen = false;
-              })
+        _selectTake(context).then((int value) {
+          if (value != null) {
+            setState(() {
+              this._take = min(MAX_TAKE, max(1, value));
             });
+          }
+
+          _isDialogOpen = false;
+        });
       }
     }
   }
@@ -407,7 +410,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onSubmitted: (val) {
                 Navigator.of(context).pop(int.parse(
                     customController.text.isEmpty
-                        ? _take
+                        ? _take.toString()
                         : customController.text.toString()));
               },
               autofocus: true,
@@ -423,7 +426,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   onPressed: () {
                     Navigator.of(context).pop(int.parse(
                         customController.text.isEmpty
-                            ? _take
+                            ? _take.toString()
                             : customController.text.toString()));
                   })
             ],
