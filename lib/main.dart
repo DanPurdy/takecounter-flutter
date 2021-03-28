@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:takecounter/src/ControlForm.dart';
 import 'package:takecounter/src/counter.dart';
 
 const MAX_TAKE = 9999;
@@ -13,48 +14,6 @@ const MAX_PASS = 999;
 
 void main() async {
   runApp(MyApp());
-}
-
-enum ControlType {
-  incrementTake,
-  decrementTake,
-  incrementPass,
-  decrementPass,
-  selectTake,
-  togglePass,
-  initiateNewPass,
-  reset,
-}
-
-class ControlForm {
-  int incrementTake;
-  int decrementTake;
-  int incrementPass;
-  int decrementPass;
-  int selectTake;
-  int togglePass;
-  int initiateNewPass;
-  int reset;
-
-  ControlForm(
-    int incrementTake,
-    int decrementTake,
-    int incrementPass,
-    int decrementPass,
-    int selectTake,
-    int togglePass,
-    int initiateNewPass,
-    int reset,
-  ) {
-    this.incrementTake = incrementTake;
-    this.decrementTake = decrementTake;
-    this.incrementPass = incrementPass;
-    this.decrementPass = decrementPass;
-    this.selectTake = selectTake;
-    this.togglePass = togglePass;
-    this.initiateNewPass = initiateNewPass;
-    this.reset = reset;
-  }
 }
 
 class MyApp extends StatelessWidget {
@@ -71,16 +30,6 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final"
-
   final String title;
 
   @override
@@ -113,28 +62,30 @@ class _MyHomePageState extends State<MyHomePage> {
   void _checkPreferences() async {
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setBool(
-        'hasKeys', false); // TODO remove once able to re open settings panel
+    controls = new ControlForm(
+      LogicalKeyboardKey.numpadAdd.keyId,
+      LogicalKeyboardKey.numpadSubtract.keyId,
+      LogicalKeyboardKey.numpad6.keyId,
+      LogicalKeyboardKey.numpad9.keyId,
+      LogicalKeyboardKey.numpadMultiply.keyId,
+      LogicalKeyboardKey.numpad4.keyId,
+      LogicalKeyboardKey.numpad7.keyId,
+      LogicalKeyboardKey.numpadDecimal.keyId,
+      prefs,
+    );
+
+    // TODO remove once able to re open settings panel
+    // await prefs.setBool('hasKeys', false);
 
     if (!prefs.containsKey('hasKeys') || prefs.getBool('hasKeys') == false) {
-      setState(() {
-        controls = new ControlForm(
-          LogicalKeyboardKey.numpadAdd.keyId,
-          LogicalKeyboardKey.numpadSubtract.keyId,
-          LogicalKeyboardKey.numpad6.keyId,
-          LogicalKeyboardKey.numpad9.keyId,
-          LogicalKeyboardKey.numpadMultiply.keyId,
-          LogicalKeyboardKey.numpad4.keyId,
-          LogicalKeyboardKey.numpad7.keyId,
-          LogicalKeyboardKey.numpadDecimal.keyId,
-        );
-      });
-
       await _showEditControls(context);
-      await prefs.setBool('hasKeys', true);
+      await controls.commit();
     } else {
-      print('LOAD CONTROLS'); // TODO load the controls from preferences
+      await controls.loadControls();
     }
+
+    _isListening = true;
+    RawKeyboard.instance.addListener(_onKey);
   }
 
   void _onKey(RawKeyEvent event) async {
@@ -147,15 +98,21 @@ class _MyHomePageState extends State<MyHomePage> {
           setState(() {
             _isCurrent = true;
           });
-        } else {
+        } else if (_take != MAX_TAKE) {
           setState(() {
             _isCurrent = false;
           });
-          await _incrementTake();
+          _incrementTake();
         }
       }
       if (event.logicalKey.keyId == controls.decrementTake) {
-        _decrementTake();
+        if (_isCurrent) {
+          setState(() {
+            _isCurrent = false;
+          });
+        } else {
+          _decrementTake();
+        }
       }
       if (event.logicalKey.keyId == controls.incrementPass) {
         if (_isPassVisible) {
@@ -189,7 +146,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _incrementTake() async {
+  void _incrementTake() {
     setState(() {
       _take = min(MAX_TAKE, _take + 1);
     });
@@ -435,11 +392,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             ),
           );
-        }).then((_) {
-      _isListening = true;
-
-      RawKeyboard.instance.addListener(_onKey);
-    });
+        });
   }
 
   Future<int> _selectTake(BuildContext context) {
@@ -454,7 +407,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onSubmitted: (val) {
                 Navigator.of(context).pop(int.parse(
                     customController.text.isEmpty
-                        ? _take.toString()
+                        ? _take
                         : customController.text.toString()));
               },
               autofocus: true,
@@ -470,7 +423,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   onPressed: () {
                     Navigator.of(context).pop(int.parse(
                         customController.text.isEmpty
-                            ? _take.toString()
+                            ? _take
                             : customController.text.toString()));
                   })
             ],
