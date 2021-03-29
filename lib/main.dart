@@ -74,18 +74,15 @@ class _MyHomePageState extends State<MyHomePage> {
       prefs,
     );
 
-    // TODO remove once able to re open settings panel
-    // await prefs.setBool('hasKeys', false);
-
     if (!prefs.containsKey('hasKeys') || prefs.getBool('hasKeys') == false) {
       await _showEditControls(context);
       await controls.commit();
     } else {
       await controls.loadControls();
-    }
 
-    _isListening = true;
-    RawKeyboard.instance.addListener(_onKey);
+      _isListening = true;
+      RawKeyboard.instance.addListener(_onKey);
+    }
   }
 
   void _onKey(RawKeyEvent event) async {
@@ -288,7 +285,8 @@ class _MyHomePageState extends State<MyHomePage> {
               )
             ],
             title: Text('Choose your controls'),
-            content: Stack(
+            content: SingleChildScrollView(
+                child: Stack(
               children: <Widget>[
                 Form(
                     child: Column(
@@ -321,6 +319,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     RawKeyboardListener(
                       focusNode: FocusNode(skipTraversal: true),
                       child: TextFormField(
+                        validator: (val) {
+                          if (val == null) {
+                            return 'Value is required';
+                          }
+                        },
                         decoration:
                             InputDecoration(labelText: 'Increment Pass'),
                         enableInteractiveSelection: false,
@@ -393,9 +396,23 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ))
               ],
-            ),
+            )),
           );
-        });
+        }).then((val) {
+      setState(() {
+        _isListening = true;
+      });
+      RawKeyboard.instance.addListener(_onKey);
+      // TODO handle this in its own widget state
+      // _incrementTakeController.dispose();
+      // _decrementTakeController.dispose();
+      // _incrementPassController.dispose();
+      // _decrementPassController.dispose();
+      // _selectTakeController.dispose();
+      // _togglePassController.dispose();
+      // _initiateNewPassController.dispose();
+      // _resetController.dispose();
+    });
   }
 
   Future<int> _selectTake(BuildContext context) {
@@ -537,19 +554,38 @@ class _MyHomePageState extends State<MyHomePage> {
                   : MediaQuery.of(context).size.width,
               child: new Column(children: [
                 new Container(
-                  height: MediaQuery.of(context).size.height * 0.20,
-                  width: _isPassVisible
-                      ? MediaQuery.of(context).size.width * 0.55
-                      : MediaQuery.of(context).size.width,
-                  color: Colors.black,
-                  child: FittedBox(
-                    alignment: Alignment.center,
-                    fit: BoxFit.contain,
-                    child: Center(
-                        child: Text('TAKE',
-                            style: TextStyle(color: Colors.white))),
-                  ),
-                ),
+                    height: MediaQuery.of(context).size.height * 0.20,
+                    width: _isPassVisible
+                        ? MediaQuery.of(context).size.width * 0.55
+                        : MediaQuery.of(context).size.width,
+                    color: Colors.black,
+                    child: LayoutBuilder(builder:
+                        (BuildContext context, BoxConstraints constraints) {
+                      return Row(children: [
+                        Container(
+                          width: constraints.maxWidth * 0.90,
+                          height: constraints.maxHeight,
+                          child: FittedBox(
+                            alignment: Alignment.center,
+                            fit: BoxFit.contain,
+                            child: Center(
+                                child: Text('TAKE',
+                                    style: TextStyle(color: Colors.white))),
+                          ),
+                        ),
+                        Container(
+                          width: constraints.maxWidth * 0.10,
+                          height: constraints.maxHeight,
+                          child: IconButton(
+                              onPressed: () => _showEditControls(context),
+                              iconSize: 20.0,
+                              icon: Icon(
+                                Icons.keyboard_sharp,
+                                color: Colors.white,
+                              )),
+                        )
+                      ]);
+                    })),
                 new Counter(
                   value: _take,
                 ),
