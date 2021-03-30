@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum ControlType {
@@ -12,14 +13,14 @@ enum ControlType {
 }
 
 class ControlForm {
-  int incrementTake;
-  int decrementTake;
-  int incrementPass;
-  int decrementPass;
-  int selectTake;
-  int togglePass;
-  int initiateNewPass;
-  int reset;
+  int incrementTake = LogicalKeyboardKey.numpadAdd.keyId;
+  int decrementTake = LogicalKeyboardKey.numpadSubtract.keyId;
+  int incrementPass = LogicalKeyboardKey.numpad6.keyId;
+  int decrementPass = LogicalKeyboardKey.numpad9.keyId;
+  int selectTake = LogicalKeyboardKey.numpadMultiply.keyId;
+  int togglePass = LogicalKeyboardKey.numpad4.keyId;
+  int initiateNewPass = LogicalKeyboardKey.numpad7.keyId;
+  int reset = LogicalKeyboardKey.numpadDecimal.keyId;
   SharedPreferences prefs;
 
   Future<void> commit() async {
@@ -70,25 +71,22 @@ class ControlForm {
     }
   }
 
+  resetDefaults() async {
+    this.incrementTake = LogicalKeyboardKey.numpadAdd.keyId;
+    this.decrementTake = LogicalKeyboardKey.numpadSubtract.keyId;
+    this.incrementPass = LogicalKeyboardKey.numpad6.keyId;
+    this.decrementPass = LogicalKeyboardKey.numpad9.keyId;
+    this.selectTake = LogicalKeyboardKey.numpadMultiply.keyId;
+    this.togglePass = LogicalKeyboardKey.numpad4.keyId;
+    this.initiateNewPass = LogicalKeyboardKey.numpad7.keyId;
+    this.reset = LogicalKeyboardKey.numpadDecimal.keyId;
+
+    await this.commit();
+  }
+
   ControlForm(
-    int incrementTake,
-    int decrementTake,
-    int incrementPass,
-    int decrementPass,
-    int selectTake,
-    int togglePass,
-    int initiateNewPass,
-    int reset,
     SharedPreferences prefs,
   ) {
-    this.incrementTake = incrementTake;
-    this.decrementTake = decrementTake;
-    this.incrementPass = incrementPass;
-    this.decrementPass = decrementPass;
-    this.selectTake = selectTake;
-    this.togglePass = togglePass;
-    this.initiateNewPass = initiateNewPass;
-    this.reset = reset;
     this.prefs = prefs;
   }
 }

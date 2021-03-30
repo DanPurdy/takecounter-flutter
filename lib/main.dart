@@ -5,14 +5,17 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:menubar/menubar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:takecounter/src/ControlForm.dart';
+import 'package:takecounter/src/SelectTakeDialog.dart';
 import 'package:takecounter/src/counter.dart';
 
 const MAX_TAKE = 9999;
 const MAX_PASS = 999;
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp());
 }
 
@@ -47,7 +50,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void initState() {
     super.initState();
-    _checkPreferences();
+
+    SharedPreferences.getInstance().then((prefs) {
+      controls = new ControlForm(
+        prefs,
+      );
+      _checkPreferences(prefs);
+    });
   }
 
   void dispose() {
@@ -59,21 +68,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _isListening = false;
   }
 
-  void _checkPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    controls = new ControlForm(
-      LogicalKeyboardKey.numpadAdd.keyId,
-      LogicalKeyboardKey.numpadSubtract.keyId,
-      LogicalKeyboardKey.numpad6.keyId,
-      LogicalKeyboardKey.numpad9.keyId,
-      LogicalKeyboardKey.numpadMultiply.keyId,
-      LogicalKeyboardKey.numpad4.keyId,
-      LogicalKeyboardKey.numpad7.keyId,
-      LogicalKeyboardKey.numpadDecimal.keyId,
-      prefs,
-    );
-
+  void _checkPreferences(SharedPreferences prefs) async {
     if (!prefs.containsKey('hasKeys') || prefs.getBool('hasKeys') == false) {
       await _showEditControls(context);
       await controls.commit();
@@ -91,51 +86,22 @@ class _MyHomePageState extends State<MyHomePage> {
         _toggleContainer();
       }
       if (event.logicalKey.keyId == controls.incrementTake) {
-        if (!_isCurrent) {
-          setState(() {
-            _isCurrent = true;
-          });
-        } else if (_take != MAX_TAKE) {
-          setState(() {
-            _isCurrent = false;
-          });
-          _incrementTake();
-        }
+        _incrementTake();
       }
       if (event.logicalKey.keyId == controls.decrementTake) {
-        if (_isCurrent) {
-          setState(() {
-            _isCurrent = false;
-          });
-        } else {
-          _decrementTake();
-        }
+        _decrementTake();
       }
       if (event.logicalKey.keyId == controls.incrementPass) {
-        if (_isPassVisible) {
-          _incrementPass();
-        }
+        _incrementPass();
       }
       if (event.logicalKey.keyId == controls.decrementPass) {
-        if (_isPassVisible) {
-          _decrementPass();
-        }
+        _decrementPass();
       }
       if (event.logicalKey.keyId == controls.reset) {
-        _isDialogOpen = true;
         _resetApp(context);
       }
       if (event.logicalKey.keyId == controls.selectTake) {
-        _isDialogOpen = true;
-        _selectTake(context).then((int value) {
-          if (value != null) {
-            setState(() {
-              this._take = min(MAX_TAKE, max(1, value));
-            });
-          }
-
-          _isDialogOpen = false;
-        });
+        _selectTake(context);
       }
     }
   }
@@ -148,26 +114,39 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _incrementTake() {
     setState(() {
-      _take = min(MAX_TAKE, _take + 1);
+      if (!_isCurrent) {
+        _isCurrent = true;
+      } else if (_take != MAX_TAKE) {
+        _isCurrent = false;
+        _take = min(MAX_TAKE, _take + 1);
+      }
     });
   }
 
   void _incrementPass() {
-    setState(() {
-      _pass = min(MAX_PASS, _pass + 1);
-    });
+    if (_isPassVisible) {
+      setState(() {
+        _pass = min(MAX_PASS, _pass + 1);
+      });
+    }
   }
 
   void _decrementTake() {
     setState(() {
-      _take = max(1, _take - 1);
+      if (_isCurrent) {
+        _isCurrent = false;
+      } else {
+        _take = max(1, _take - 1);
+      }
     });
   }
 
   void _decrementPass() {
-    setState(() {
-      _pass = max(1, _pass - 1);
-    });
+    if (_isPassVisible) {
+      setState(() {
+        _pass = max(1, _pass - 1);
+      });
+    }
   }
 
   Future<void> _showEditControls(BuildContext context) {
@@ -278,11 +257,18 @@ class _MyHomePageState extends State<MyHomePage> {
           return AlertDialog(
             actions: <Widget>[
               TextButton(
-                child: Text('Confirm'),
+                child: Text('Reset & close'),
+                onPressed: () async {
+                  await controls.resetDefaults();
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: Text('Close'),
                 onPressed: () {
                   Navigator.of(context).pop();
                 },
-              )
+              ),
             ],
             title: Text('Choose your controls'),
             content: SingleChildScrollView(
@@ -415,43 +401,30 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<int> _selectTake(BuildContext context) {
-    TextEditingController customController = TextEditingController();
-
-    return showDialog(
+  Future<void> _selectTake(BuildContext context) {
+    setState(() {
+      _isDialogOpen = true;
+    });
+    return showDialog<int>(
         context: context,
         builder: (context) {
-          return AlertDialog(
-            title: Text('Select take'),
-            content: CupertinoTextField(
-              onSubmitted: (val) {
-                Navigator.of(context).pop(int.parse(
-                    customController.text.isEmpty
-                        ? _take.toString()
-                        : customController.text.toString()));
-              },
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              controller: customController,
-              inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.digitsOnly
-              ],
-            ),
-            actions: <Widget>[
-              CupertinoButton(
-                  child: Text('Confirm'),
-                  onPressed: () {
-                    Navigator.of(context).pop(int.parse(
-                        customController.text.isEmpty
-                            ? _take.toString()
-                            : customController.text.toString()));
-                  })
-            ],
-          );
-        });
+          return SelectTakeDialog(take: _take);
+        }).then((int value) {
+      setState(() {
+        if (value != null) {
+          this._take = min(MAX_TAKE, max(1, value));
+        }
+
+        _isDialogOpen = false;
+      });
+    });
   }
 
   _resetApp(BuildContext context) {
+    setState(() {
+      _isDialogOpen = true;
+    });
+
     return showDialog(
         context: context,
         builder: (context) {
@@ -491,7 +464,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ));
         }).then((test) {
-      _isDialogOpen = false;
+      setState(() {
+        _isDialogOpen = false;
+      });
     });
   }
 
@@ -499,6 +474,24 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!Platform.isMacOS && !Platform.isLinux) {
       return;
     }
+
+    setApplicationMenu([
+      Submenu(label: 'Controls', children: [
+        MenuItem(
+            label: 'Edit Controls',
+            enabled: true,
+            onClicked: () {
+              _showEditControls(context);
+            }),
+        MenuDivider(),
+        MenuItem(
+            label: 'Reset Controls to default',
+            enabled: true,
+            onClicked: () async {
+              await controls.resetDefaults();
+            }),
+      ]),
+    ]);
   }
 
   @override
@@ -523,7 +516,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 visible: _isPassVisible ? true : false,
                 child: Row(children: [
                   Container(
-                      width: (MediaQuery.of(context).size.width * 0.45) - 12.0,
+                      width: (MediaQuery.of(context).size.width * 0.45) - 4.0,
                       child: new Column(children: [
                         new Container(
                           height: MediaQuery.of(context).size.height * 0.20,
@@ -542,8 +535,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         )
                       ])),
                   VerticalDivider(
-                    width: 12.0,
-                    thickness: 12.0,
+                    width: 4.0,
+                    thickness: 4.0,
                     color: Colors.black,
                   )
                 ])),
@@ -554,38 +547,19 @@ class _MyHomePageState extends State<MyHomePage> {
                   : MediaQuery.of(context).size.width,
               child: new Column(children: [
                 new Container(
-                    height: MediaQuery.of(context).size.height * 0.20,
-                    width: _isPassVisible
-                        ? MediaQuery.of(context).size.width * 0.55
-                        : MediaQuery.of(context).size.width,
-                    color: Colors.black,
-                    child: LayoutBuilder(builder:
-                        (BuildContext context, BoxConstraints constraints) {
-                      return Row(children: [
-                        Container(
-                          width: constraints.maxWidth * 0.90,
-                          height: constraints.maxHeight,
-                          child: FittedBox(
-                            alignment: Alignment.center,
-                            fit: BoxFit.contain,
-                            child: Center(
-                                child: Text('TAKE',
-                                    style: TextStyle(color: Colors.white))),
-                          ),
-                        ),
-                        Container(
-                          width: constraints.maxWidth * 0.10,
-                          height: constraints.maxHeight,
-                          child: IconButton(
-                              onPressed: () => _showEditControls(context),
-                              iconSize: 20.0,
-                              icon: Icon(
-                                Icons.keyboard_sharp,
-                                color: Colors.white,
-                              )),
-                        )
-                      ]);
-                    })),
+                  height: MediaQuery.of(context).size.height * 0.20,
+                  width: _isPassVisible
+                      ? MediaQuery.of(context).size.width * 0.55
+                      : MediaQuery.of(context).size.width,
+                  color: Colors.black,
+                  child: FittedBox(
+                    alignment: Alignment.center,
+                    fit: BoxFit.contain,
+                    child: Center(
+                        child: Text('TAKE',
+                            style: TextStyle(color: Colors.white))),
+                  ),
+                ),
                 new Counter(
                   value: _take,
                 ),

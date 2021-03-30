@@ -24,6 +24,11 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: 2.0.5
+  menubar:
+    git:
+      url: git://github.com/google/flutter-desktop-embedding.git
+      path: plugins/menubar
+      ref: 7812516a5c1fc8ef379e244106953a2b534432b9
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
