@@ -32,13 +32,18 @@ class _SelectTakeDialogState extends State<SelectTakeDialog> {
       ),
       actions: <Widget>[
         CupertinoButton(
+            child: Text('cancel'),
+            onPressed: () {
+              Navigator.of(context).pop(widget.take);
+            }),
+        CupertinoButton.filled(
             child: Text('Confirm'),
             onPressed: () {
               Navigator.of(context).pop(int.parse(
                   _takeSelectController.text.isEmpty
                       ? widget.take.toString()
                       : _takeSelectController.text.toString()));
-            })
+            }),
       ],
     );
   }

@@ -25,14 +25,13 @@ class _ResetDialogState extends State<ResetDialog> {
         },
         child: AlertDialog(
           title: Text('Reset Takecounter'),
-          content: Text('Reset the takecounter'),
           actions: <Widget>[
             CupertinoButton(
                 child: Text('Cancel'),
                 onPressed: () {
                   Navigator.of(context).pop();
                 }),
-            CupertinoButton(
+            CupertinoButton.filled(
                 child: Text('Confirm'),
                 onPressed: () {
                   widget.resetToDefault();
