@@ -8,7 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:menubar/menubar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:takecounter/src/ControlForm.dart';
-import 'package:takecounter/src/SelectTakeDialog.dart';
+import 'package:takecounter/src/dialogs/ResetDialog.dart';
+import 'package:takecounter/src/dialogs/SelectTakeDialog.dart';
 import 'package:takecounter/src/counter.dart';
 
 const MAX_TAKE = 9999;
@@ -420,6 +421,14 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  _resetToDefault() {
+    setState(() {
+      this._take = 1;
+      this._pass = 1;
+      this._isCurrent = false;
+    });
+  }
+
   _resetApp(BuildContext context) {
     setState(() {
       _isDialogOpen = true;
@@ -428,42 +437,10 @@ class _MyHomePageState extends State<MyHomePage> {
     return showDialog(
         context: context,
         builder: (context) {
-          return RawKeyboardListener(
-              autofocus: true,
-              focusNode: FocusNode(),
-              onKey: (event) {
-                if (event.isKeyPressed(LogicalKeyboardKey.enter) ||
-                    event.isKeyPressed(LogicalKeyboardKey.numpadEnter)) {
-                  Navigator.of(context).pop();
-                  setState(() {
-                    _take = 1;
-                    _pass = 1;
-                    _isCurrent = false;
-                  });
-                }
-              },
-              child: AlertDialog(
-                title: Text('Reset Takecounter'),
-                content: Text('Reset the takecounter'),
-                actions: <Widget>[
-                  CupertinoButton(
-                      child: Text('Cancel'),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      }),
-                  CupertinoButton(
-                      child: Text('Confirm'),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        setState(() {
-                          _take = 1;
-                          _pass = 1;
-                          _isCurrent = false;
-                        });
-                      }),
-                ],
-              ));
-        }).then((test) {
+          return ResetDialog(
+            resetToDefault: _resetToDefault,
+          );
+        }).then((_) {
       setState(() {
         _isDialogOpen = false;
       });

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class SelectTakeDialog extends StatefulWidget {
-  final take;
+  final int take;
   SelectTakeDialog({Key key, @required this.take}) : super(key: key);
 
   @override
