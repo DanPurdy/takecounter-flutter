@@ -11,7 +11,7 @@ import 'package:takecounter/src/ControlForm.dart';
 import 'package:takecounter/src/dialogs/EditControlsDialog.dart';
 import 'package:takecounter/src/dialogs/ResetDialog.dart';
 import 'package:takecounter/src/dialogs/SelectTakeDialog.dart';
-import 'package:takecounter/src/counter.dart';
+import 'package:takecounter/src/widgets/Counter.dart';
 
 const MAX_TAKE = 9999;
 const MAX_PASS = 999;
