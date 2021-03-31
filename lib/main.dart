@@ -252,7 +252,7 @@ class _MyHomePageState extends State<MyHomePage> {
             }),
         MenuDivider(),
         MenuItem(
-            label: 'Reset Controls to default',
+            label: 'Reset Control Defaults',
             enabled: true,
             onClicked: () async {
               await controls.resetDefaults();
