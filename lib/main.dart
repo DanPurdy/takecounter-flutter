@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:menubar/menubar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:takecounter/src/ControlForm.dart';
+import 'package:takecounter/src/dialogs/ControlsSwitchDialog.dart';
 import 'package:takecounter/src/dialogs/EditControlsDialog.dart';
 import 'package:takecounter/src/dialogs/ResetDialog.dart';
 import 'package:takecounter/src/dialogs/SelectTakeDialog.dart';
@@ -71,8 +72,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _checkPreferences(SharedPreferences prefs) async {
+    await _showEditControls(context);
     if (!prefs.containsKey('hasKeys') || prefs.getBool('hasKeys') == false) {
-      await _showEditControls(context);
     } else {
       await controls.loadControls();
 
@@ -186,7 +187,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return showDialog(
         context: context,
         builder: (context) {
-          return EditControlsDialog(
+          return ControlSwitchDialog(
             controls: controls,
           );
         }).then((val) async {
