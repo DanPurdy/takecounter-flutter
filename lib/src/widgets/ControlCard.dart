@@ -11,7 +11,7 @@ class ControlCard extends StatelessWidget {
     return ConstrainedBox(
         constraints: BoxConstraints(maxHeight: 500),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(15, 15, 15, 15),
+          padding: EdgeInsets.fromLTRB(15, 5, 15, 15),
           child: Image(
             fit: BoxFit.contain,
             image: AssetImage(imageUrl),

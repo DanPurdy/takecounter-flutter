@@ -24,11 +24,16 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: 2.0.5
+  window_size:
+    git:
+      url: https://github.com/google/flutter-desktop-embedding.git
+      path: plugins/window_size
+      ref: f2d8aa3820fb87316516670bf4d51a74de8ac0dd
   menubar:
     git:
       url: git://github.com/google/flutter-desktop-embedding.git
       path: plugins/menubar
-      ref: 7812516a5c1fc8ef379e244106953a2b534432b9
+      ref: f2d8aa3820fb87316516670bf4d51a74de8ac0dd
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

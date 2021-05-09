@@ -9,16 +9,28 @@ import 'package:menubar/menubar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:takecounter/src/ControlForm.dart';
 import 'package:takecounter/src/dialogs/ControlsSwitchDialog.dart';
-import 'package:takecounter/src/dialogs/EditControlsDialog.dart';
 import 'package:takecounter/src/dialogs/ResetDialog.dart';
 import 'package:takecounter/src/dialogs/SelectTakeDialog.dart';
 import 'package:takecounter/src/widgets/Counter.dart';
+import 'package:window_size/window_size.dart';
 
 const MAX_TAKE = 9999;
 const MAX_PASS = 999;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    PlatformWindow screen = await getWindowInfo().then((value) => value);
+    setWindowMinSize(Size(800, 600));
+    setWindowMaxSize(Size(
+        screen.screen.visibleFrame.right, screen.screen.visibleFrame.bottom));
+    // Set the default window size to the max size of the current window
+    setWindowFrame(Rect.fromLTRB(
+        screen.screen.visibleFrame.left,
+        screen.screen.visibleFrame.top,
+        screen.screen.visibleFrame.right,
+        screen.screen.visibleFrame.bottom));
+  }
   runApp(MyApp());
 }
 
